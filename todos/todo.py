@@ -1,28 +1,43 @@
-from fastapi import APIRouter, Path, HTTPException, status
+from fastapi import APIRouter, Path, HTTPException, status, Request, Depends
 
 from model import Todo, TodoItem, TodoItems
+
+from fastapi.templating import Jinja2Templates
 
 todo_router = APIRouter()
 
 todo_list = []
 
+templates = Jinja2Templates(directory="templates/")
+
 
 @todo_router.post("/todo")
-def add_todo(todo: Todo) -> dict:
+def add_todo(request: Request, todo: Todo = Depends(Todo.as_form)):
+    todo.id = len(todo_list) + 1
     todo_list.append(todo)
-    return {"message": "Todo added successfully."}
+    return templates.TemplateResponse('todo.html', {
+        "request": request,
+        "todos": todo_list
+    })
 
 
 @todo_router.get("/todo", response_model=TodoItems)
-def retrieve_todos() -> dict:
-    return {"todos": todo_list}
+def retrieve_todos(request: Request):
+    return templates.TemplateResponse('todo.html', {
+        "request": request,
+        "todos": todo_list
+    })
 
 
 @todo_router.get("/todo/{todo_id}")
-def get_single_todo(todo_id: int = Path(..., title="Id of todo to be retrieved")) -> dict:
-    for td in todo_list:
-        if td.id == todo_id:
-            return {"todo": td}
+def get_single_todo(request: Request, todo_id: int = Path(..., title="Id of todo to be retrieved")):
+    for todo in todo_list:
+        if todo.id == todo_id:
+            return templates.TemplateResponse("todo.html", {
+                "request": request,
+                "todo": todo
+            })
+
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail="The todo with provided id does not exist"
